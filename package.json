@@ -1,0 +1,12 @@
+{
+  "name": "n8n-windows-setup",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Original n8n packaged as Windows setup.exe via GitHub Actions + Inno Setup",
+  "dependencies": {
+    "n8n": "latest"
+  },
+  "scripts": {
+    "start": "n8n start"
+  }
+}

@@ -1,0 +1,57 @@
+name: Build n8n setup.exe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+env:
+  NODE_VERSION: "20.18.1"
+  N8N_VERSION: "latest"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install original n8n (full frontend + backend)
+        run: npm install --no-audit --no-fund
+
+      - name: Verify full n8n package
+        shell: pwsh
+        run: |
+          node -e "console.log(require('./node_modules/n8n/package.json').version)"
+          if (!(Test-Path "node_modules/n8n/bin/n8n")) { throw "backend CLI missing: node_modules/n8n/bin/n8n" }
+          if (!(Test-Path "node_modules/n8n-editor-ui/dist/index.html")) { throw "frontend dist missing: n8n-editor-ui/dist" }
+          Write-Host "OK: backend CLI + frontend dist present"
+
+      - name: Stage bundle (Node portable + n8n)
+        shell: pwsh
+        run: |
+          $NodeZip = "node-v$env:NODE_VERSION-win-x64.zip"
+          $Url = "https://nodejs.org/dist/v$env:NODE_VERSION/$NodeZip"
+          Invoke-WebRequest -Uri $Url -OutFile $NodeZip
+          Expand-Archive $NodeZip -DestinationPath node-dl
+          New-Item -ItemType Directory -Force -Path bundle\node | Out-Null
+          New-Item -ItemType Directory -Force -Path bundle\app | Out-Null
+          Copy-Item "node-dl\node-v$env:NODE_VERSION-win-x64\*" bundle\node -Recurse -Force
+          Copy-Item package.json bundle\app\package.json -Force
+          Copy-Item node_modules bundle\app\node_modules -Recurse -Force
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Compile setup.exe
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\n8n.iss'
+
+      - name: Upload setup.exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: n8n-Setup-exe
+          path: installer/Output/*.exe
