@@ -6,10 +6,6 @@ on:
     branches: [main]
     tags: ["v*"]
 
-env:
-  NODE_VERSION: "20.18.1"
-  N8N_VERSION: "latest"
-
 jobs:
   build-windows:
     runs-on: windows-2022
@@ -18,7 +14,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20.18.1"
+          node-version: "24"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Install original n8n (full frontend + backend)
         env:
@@ -36,15 +36,19 @@ jobs:
       - name: Stage bundle (Node portable + n8n)
         shell: pwsh
         run: |
-          $NodeZip = "node-v$env:NODE_VERSION-win-x64.zip"
-          $Url = "https://nodejs.org/dist/v$env:NODE_VERSION/$NodeZip"
+          $NodeVer = (node -v).TrimStart('v')
+          $NodeZip = "node-v$NodeVer-win-x64.zip"
+          $Url = "https://nodejs.org/dist/v$NodeVer/$NodeZip"
+          Write-Host "Downloading $Url"
           Invoke-WebRequest -Uri $Url -OutFile $NodeZip
           Expand-Archive $NodeZip -DestinationPath node-dl
           New-Item -ItemType Directory -Force -Path bundle\node | Out-Null
           New-Item -ItemType Directory -Force -Path bundle\app | Out-Null
-          Copy-Item "node-dl\node-v$env:NODE_VERSION-win-x64\*" bundle\node -Recurse -Force
+          Copy-Item "node-dl\node-v$NodeVer-win-x64\*" bundle\node -Recurse -Force
           Copy-Item package.json bundle\app\package.json -Force
           Copy-Item node_modules bundle\app\node_modules -Recurse -Force
+          node --version
+          bundle\node\node.exe --version
 
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
