@@ -45,16 +45,31 @@ jobs:
           New-Item -ItemType Directory -Force -Path bundle\node | Out-Null
           New-Item -ItemType Directory -Force -Path bundle\app | Out-Null
           Copy-Item "node-dl\node-v$NodeVer-win-x64\*" bundle\node -Recurse -Force
+          # Prune Node portable to runtime-only (node.exe + DLLs). npm/npx not needed at runtime.
+          # This cuts ~10k files with very long paths that break Inno compile.
+          Remove-Item -Recurse -Force bundle\node\node_modules -ErrorAction SilentlyContinue
+          Remove-Item -Force bundle\node\npm*, bundle\node\npx*, bundle\node\corepack* -ErrorAction SilentlyContinue
           Copy-Item package.json bundle\app\package.json -Force
           Copy-Item node_modules bundle\app\node_modules -Recurse -Force
+          # Drop npm cache leftovers if any
+          Remove-Item -Recurse -Force bundle\app\node_modules\.cache -ErrorAction SilentlyContinue
           node --version
           bundle\node\node.exe --version
+          Write-Host "Bundle sizes:"
+          "{0:N1} MB node" -f ((Get-ChildItem bundle\node -Recurse | Measure-Object Length -Sum).Sum / 1MB)
+          "{0:N1} MB app" -f ((Get-ChildItem bundle\app -Recurse | Measure-Object Length -Sum).Sum / 1MB)
 
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
       - name: Compile setup.exe
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\n8n.iss'
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\n8n.iss > iscc.log 2>&1
+          $code = $LASTEXITCODE
+          Get-Content iscc.log -Tail 60
+          if ($code -ne 0) { throw "ISCC failed with exit code $code (see tail above, full log: iscc.log)" }
+          Get-ChildItem installer/Output/*.exe
 
       - name: Upload setup.exe artifact
         uses: actions/upload-artifact@v4

@@ -1,5 +1,5 @@
-; Original n8n Windows installer
-; Built on GitHub Actions (windows-latest) with Inno Setup 6
+; Original n8n Windows installer - FULL frontend + backend
+; Built on GitHub Actions (windows-2022) with Inno Setup 6
 
 #define MyAppName "n8n"
 #define MyAppVersion "1.0.0"
@@ -17,18 +17,20 @@ DefaultDirName={autopf}\n8n
 DefaultGroupName=n8n
 OutputDir=Output
 OutputBaseFilename=n8n-Setup-{#MyAppVersion}
-Compression=lzma2/max
-SolidCompression=yes
+Compression=lzma2/fast
+SolidCompression=no
+LZMAUseSeparateProcess=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+UninstallDisplaySize=2500000
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-; Node.js portable runtime
+; Node.js portable runtime (pruned to node.exe + DLLs, no npm)
 Source: "..\bundle\node\*"; DestDir: "{app}\node"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Original n8n app - FULL backend + frontend (npm install output, includes n8n-editor-ui dist)
 Source: "..\bundle\app\*"; DestDir: "{app}\app"; Flags: ignoreversion recursesubdirs createallsubdirs
